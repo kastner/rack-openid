@@ -142,6 +142,21 @@ class TestOpenID < Test::Unit::TestCase
     assert_equal 'success', @response.body
   end
 
+  def test_parameter_with_attribute_exchange
+    @app = app(
+    :required => ['http://axschema.org/namePerson/friendly', 'http://axschema.org/contact/email']
+    )
+    process('/', :method => 'GET')
+    assert_parameter "openid.ax.type.ext1", "http://axschema.org/contact/email"
+    assert_parameter "openid.ax.type.ext0", "http://axschema.org/namePerson/friendly"
+  end
+  
+  def test_with_google_attribute_exchange
+    @app = app(:required => 'http://axschema.org/contact/email@@email')
+    process('/', :method => 'GET')
+    assert_parameter "openid.ax.type.email", "http://axschema.org/contact/email"
+  end
+
   def test_with_missing_id
     @app = app(:identifier => "#{RotsServer}/john.doe")
     process('/', :method => 'GET')
@@ -192,5 +207,16 @@ class TestOpenID < Test::Unit::TestCase
       response = Net::HTTP.get_response(location)
       uri = URI(response['Location'])
       process("#{uri.path}?#{uri.query}")
+    end
+
+    def assert_parameter(key, value=nil, url=nil)
+      headers = extract_parameters(url || @response.headers['Location'])
+      assert headers.keys.include?(key), "#{key} not in #{headers.keys.join(", ")}"
+      assert_equal value, URI.unescape(headers[key]) if value
+    end
+    
+    def extract_parameters(url)
+      url = URI.parse(url) unless url.is_a? URI
+      Hash[*url.query.split(/[&=]/)]
     end
 end

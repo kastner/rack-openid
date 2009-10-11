@@ -169,6 +169,7 @@ module Rack
         oidreq.redirect_url(trust_root || realm_url(req), return_to || request_url(req))
       end
 
+      URL_FIELD_SEPERATOR = "@@"
       URL_FIELD_SELECTOR = lambda { |field| field.to_s =~ %r{^https?://} }
 
       def add_simple_registration_fields(oidreq, fields)
@@ -191,10 +192,12 @@ module Rack
         axreq = ::OpenID::AX::FetchRequest.new
 
         required = Array(fields['required']).select(&URL_FIELD_SELECTOR)
-        required.each { |field| axreq.add(::OpenID::AX::AttrInfo.new(field, nil, true)) }
-
         optional = Array(fields['optional']).select(&URL_FIELD_SELECTOR)
-        optional.each { |field| axreq.add(::OpenID::AX::AttrInfo.new(field, nil, false)) }
+        
+        (required + optional).each do |field| 
+          field, field_alias = field.split(URL_FIELD_SEPERATOR)
+          axreq.add(::OpenID::AX::AttrInfo.new(field, field_alias, true)) 
+        end
 
         oidreq.add_extension(axreq)
       end
